@@ -1,0 +1,12 @@
+# Ignore all __pycache__ folders recursively
+**/__pycache__/
+
+# Ignore environment file
+.env
+
+# Ignore specific scripts
+run_sequential_by_dataset.py
+test_setup.py
+
+# Ignore the entire fairness_experiments folder
+/fairness_experiments/
