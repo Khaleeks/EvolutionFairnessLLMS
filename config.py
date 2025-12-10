@@ -16,22 +16,34 @@ from pathlib import Path
 # ============================================================================
 
 class ModelSize(Enum):
-    """Together AI model names"""
+    """Model names for different providers"""
+    # Together AI models
     LLAMA_8B = "meta-llama/Meta-Llama-3.1-8B-Instruct-Turbo"
     LLAMA_70B = "meta-llama/Meta-Llama-3.1-70B-Instruct-Turbo"
     LLAMA_405B = "meta-llama/Meta-Llama-3.1-405B-Instruct-Turbo"
 
+    # Mistral models (via Together AI)
+    MISTRAL_7B = "mistralai/Mistral-7B-Instruct-v0.3"
+    MISTRAL_SMALL_24B = "mistralai/Mistral-Small-24B-Instruct-2501"
+    
+    # Google Gemini models
+    GEMINI_25_FLASH = "gemini-2.5-flash"
+    GEMINI_25_PRO = "gemini-2.5-pro"
+    
+    # OpenAI GPT models
+    GPT_4O_MINI = "gpt-4o-mini"
+    GPT_4O = "gpt-4o"
+
 class DatasetType(Enum):
     FINANCE = "finance"
     CRIMINAL_JUSTICE = "criminal_justice"
-    NLP_TOXICITY = "nlp_toxicity"
-    NLP_OCCUPATION = "nlp_occupation"
-    NLP_COREFERENCE = "nlp_coreference"
     SOCIOECONOMIC = "socioeconomic"
     HEALTHCARE = "healthcare"
 
 class APIProvider(Enum):
     TOGETHER = "together"
+    GEMINI = "gemini"
+    OPENAI = "openai"
 
 # ============================================================================
 # DATA CLASSES
@@ -114,17 +126,6 @@ DATASET_REGISTRY = {
         loader_function="load_folktables"
     ),
     
-    "civil_comments": DatasetConfig(
-        name="Civil Comments",
-        dataset_type=DatasetType.NLP_TOXICITY,
-        sensitive_features=["gender"],
-        target_column="toxicity",
-        positive_class="toxic",
-        negative_class="non_toxic",
-        task_description="detect toxic or offensive comments",
-        loader_function="load_civil_comments"
-    ),
-    
     "bank_marketing": DatasetConfig(
         name="Bank Marketing",
         dataset_type=DatasetType.FINANCE,
@@ -158,28 +159,6 @@ DATASET_REGISTRY = {
         task_description="predict 30-day hospital readmission for diabetic patients",
         loader_function="load_heritage_health"
     ),
-    
-    "bias_in_bios": DatasetConfig(
-        name="Bias in Bios",
-        dataset_type=DatasetType.NLP_OCCUPATION,
-        sensitive_features=["gender"],
-        target_column="occupation",
-        positive_class="predicted_occupation",
-        negative_class="other_occupation",
-        task_description="predict occupation from biography text",
-        loader_function="load_bias_in_bios"
-    ),
-    
-    "winogender": DatasetConfig(
-        name="WinoGender Schemas",
-        dataset_type=DatasetType.NLP_COREFERENCE,
-        sensitive_features=["gender"],
-        target_column="correct_resolution",
-        positive_class="correct",
-        negative_class="incorrect",
-        task_description="resolve gender-neutral coreference",
-        loader_function="load_winogender"
-    ),
 }
 
 # ============================================================================
@@ -196,7 +175,7 @@ def create_experiment_config(
     model_size: ModelSize,
     api_provider: APIProvider = APIProvider.TOGETHER,
     temperature: float = 0.0,
-    max_tokens: int = 200,
+    max_tokens: int = 2000,
     test_size: float = 0.20,
     random_state: int = 42
 ) -> ExperimentConfig:
@@ -230,6 +209,7 @@ def create_output_structure(base_dir: str = "fairness_experiments") -> Path:
     (base_path / "analysis").mkdir(exist_ok=True)
     (base_path / "summaries").mkdir(exist_ok=True)
     (base_path / "logs").mkdir(exist_ok=True)
+    (base_path / "checkpoints").mkdir(exist_ok=True)  # NEW: For saving progress
     
     return base_path
 
@@ -245,7 +225,8 @@ def get_output_paths(exp_config: ExperimentConfig, base_dir: str = "fairness_exp
         'predictions': base_path / "predictions" / f"{prefix}_predictions.csv",
         'analysis': base_path / "analysis" / f"{prefix}_analysis.csv",
         'fairness_summary': base_path / "summaries" / f"{prefix}_fairness.json",
-        'log': base_path / "logs" / f"{prefix}.log"
+        'log': base_path / "logs" / f"{prefix}.log",
+        'checkpoint': base_path / "checkpoints" / f"{prefix}_checkpoint.csv"  # NEW
     }
 
 def create_experiment_matrix(
