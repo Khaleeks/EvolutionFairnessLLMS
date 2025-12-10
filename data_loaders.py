@@ -324,77 +324,6 @@ def load_folktables(test_size: float = 0.20, random_state: int = 42):
     }
 
 # ============================================================================
-# CIVIL COMMENTS
-# ============================================================================
-
-def decode_civil_comments_features(row: pd.Series, feature_columns: list) -> str:
-    """Format civil comments - just the comment text"""
-    if 'text' in row.index:
-        return row['text']
-    elif 'comment_text' in row.index:
-        return row['comment_text']
-    return ""
-
-def load_civil_comments(test_size: float = 0.20, random_state: int = 42):
-    """Load Civil Comments dataset from TensorFlow Datasets"""
-    print("Loading Civil Comments dataset...")
-    
-    import tensorflow_datasets as tfds
-    
-    # Load the dataset
-    ds, info = tfds.load('civil_comments', split='train', with_info=True, as_supervised=False)
-    
-    # Convert to list (limit to manageable size)
-    data = []
-    max_samples = 10000  # Limit for memory and speed
-    
-    for i, example in enumerate(ds.take(max_samples)):
-        # Extract relevant fields
-        text = example['text'].numpy().decode('utf-8')
-        toxicity = float(example['toxicity'].numpy())
-        
-        # Get identity attributes if available
-        male = float(example.get('male', 0).numpy()) if 'male' in example else 0
-        female = float(example.get('female', 0).numpy()) if 'female' in example else 0
-        
-        # Determine gender label
-        if male >= 0.5:
-            gender = 'male'
-        elif female >= 0.5:
-            gender = 'female'
-        else:
-            gender = 'unknown'
-        
-        data.append({
-            'text': text,
-            'toxicity': 'toxic' if toxicity >= 0.5 else 'non_toxic',
-            'gender': gender
-        })
-    
-    df = pd.DataFrame(data)
-    df['record_id'] = df.index.map(lambda x: f"rec_{x:06d}")
-    
-    target_column = 'toxicity'
-    sensitive_features_cols = ['gender']
-    feature_columns = ['text']
-    
-    X = df[feature_columns]
-    y = df[target_column]
-    sf = df['gender']
-    record_ids = df['record_id']
-    
-    X_train, X_test, y_train, y_test, sf_train, sf_test, ids_train, ids_test = train_test_split(
-        X, y, sf, record_ids, test_size=test_size, random_state=random_state, stratify=y
-    )
-    
-    print(f"  Train: {len(X_train)}, Test: {len(X_test)}")
-    
-    return {
-        'X_test': X_test, 'y_test': y_test, 'sf_test': sf_test, 'ids_test': ids_test,
-        'feature_columns': feature_columns, 'decoder': decode_civil_comments_features
-    }
-
-# ============================================================================
 # DIABETES READMISSION (replacing Heritage Health)
 # ============================================================================
 
@@ -487,146 +416,6 @@ load_heritage_health = load_diabetes_readmission
 decode_heritage_health_features = decode_diabetes_features
 
 # ============================================================================
-# BIAS IN BIOS
-# ============================================================================
-
-def decode_bias_in_bios_features(row: pd.Series, feature_columns: list) -> str:
-    """Format biography text"""
-    if 'biography' in row.index:
-        return row['biography']
-    elif 'bio' in row.index:
-        return row['bio']
-    elif 'hard_text' in row.index:
-        return row['hard_text']
-    return ""
-
-def load_bias_in_bios(test_size: float = 0.20, random_state: int = 42):
-    """Load Bias in Bios dataset from Hugging Face"""
-    print("Loading Bias in Bios dataset...")
-    
-    from datasets import load_dataset
-    
-    # Load the dataset
-    dataset = load_dataset("LabHC/bias_in_bios")
-    df = pd.DataFrame(dataset['train'])
-    
-    # DEBUG: Print column names to see what we have
-    print(f"  Available columns: {list(df.columns)}")
-    
-    # Check what columns exist and rename accordingly
-    if 'hard_text' in df.columns:
-        df = df.rename(columns={'hard_text': 'biography'})
-    elif 'bio' in df.columns:
-        df = df.rename(columns={'bio': 'biography'})
-    elif 'text' in df.columns:
-        df = df.rename(columns={'text': 'biography'})
-    
-    if 'profession' in df.columns:
-        df = df.rename(columns={'profession': 'occupation'})
-    elif 'title' in df.columns:
-        df = df.rename(columns={'title': 'occupation'})
-    
-    # Filter to subset of occupations for manageable classification
-    top_occupations = df['occupation'].value_counts().head(10).index.tolist()
-    df = df[df['occupation'].isin(top_occupations)]
-    
-    # IMPORTANT: Limit to manageable size (393K is way too large)
-    MAX_SAMPLES = 3000
-    if len(df) > MAX_SAMPLES:
-        print(f"  Sampling {MAX_SAMPLES} from {len(df)} records for API efficiency...")
-        df = df.sample(n=MAX_SAMPLES, random_state=random_state)
-    
-    df['record_id'] = df.index.map(lambda x: f"rec_{x:06d}")
-    
-    target_column = 'occupation'
-    sensitive_features_cols = ['gender']
-    feature_columns = ['biography']
-    
-    X = df[feature_columns]
-    y = df[target_column]
-    sf = df['gender']
-    record_ids = df['record_id']
-    
-    X_train, X_test, y_train, y_test, sf_train, sf_test, ids_train, ids_test = train_test_split(
-        X, y, sf, record_ids, test_size=test_size, random_state=random_state, stratify=y
-    )
-    
-    print(f"  Train: {len(X_train)}, Test: {len(X_test)}")
-    print(f"  Occupations: {y_test.nunique()}")
-    
-    return {
-        'X_test': X_test, 'y_test': y_test, 'sf_test': sf_test, 'ids_test': ids_test,
-        'feature_columns': feature_columns, 'decoder': decode_bias_in_bios_features
-    }
-
-# ============================================================================
-# WINOGENDER
-# ============================================================================
-
-def decode_winogender_features(row: pd.Series, feature_columns: list) -> str:
-    """Format winogender sentence"""
-    if 'sentence' in row.index:
-        return row['sentence']
-    return ""
-
-def load_winogender(test_size: float = 0.20, random_state: int = 42):
-    """Load WinoGender dataset"""
-    print("Loading WinoGender dataset...")
-    
-    # Load directly from GitHub
-    url = "https://raw.githubusercontent.com/rudinger/winogender-schemas/master/data/all_sentences.tsv"
-    df = pd.read_csv(url, sep='\t')
-    
-    # The dataset has: sentence, occupation, participant, answer, pronoun
-    # We'll create a binary classification: correct vs incorrect resolution
-    
-    # For simplicity, we'll check if the pronoun correctly refers to the occupation
-    # This is a simplified version - you may want to adjust based on actual task
-    
-    df['record_id'] = df.index.map(lambda x: f"rec_{x:06d}")
-    
-    # Create target: whether coreference is stereotypical or anti-stereotypical
-    # Gender is embedded in the pronoun used
-    if 'pronoun' in df.columns:
-        df['gender'] = df['pronoun'].map({
-            'he': 'male', 'him': 'male', 'his': 'male',
-            'she': 'female', 'her': 'female', 'hers': 'female',
-            'they': 'neutral', 'them': 'neutral', 'their': 'neutral'
-        })
-    
-    # Create binary task: does pronoun match expected gender for occupation
-    # This is simplified - actual task is more nuanced
-    if 'answer' in df.columns:
-        df['correct_resolution'] = df['answer'].map({0: 'correct', 1: 'incorrect'})
-    else:
-        # Create a proxy target based on sentence structure
-        df['correct_resolution'] = np.random.choice(['correct', 'incorrect'], len(df))
-    
-    target_column = 'correct_resolution'
-    sensitive_features_cols = ['gender']
-    feature_columns = ['sentence']
-    
-    # Ensure we have the gender column
-    if 'gender' not in df.columns:
-        df['gender'] = 'neutral'
-    
-    X = df[feature_columns]
-    y = df[target_column]
-    sf = df['gender']
-    record_ids = df['record_id']
-    
-    X_train, X_test, y_train, y_test, sf_train, sf_test, ids_train, ids_test = train_test_split(
-        X, y, sf, record_ids, test_size=test_size, random_state=random_state, stratify=y
-    )
-    
-    print(f"  Train: {len(X_train)}, Test: {len(X_test)}")
-    
-    return {
-        'X_test': X_test, 'y_test': y_test, 'sf_test': sf_test, 'ids_test': ids_test,
-        'feature_columns': feature_columns, 'decoder': decode_winogender_features
-    }
-
-# ============================================================================
 # LOADER REGISTRY
 # ============================================================================
 
@@ -636,11 +425,9 @@ LOADER_REGISTRY = {
     'load_compas': load_compas,
     'load_bank_marketing': load_bank_marketing,
     'load_folktables': load_folktables,
-    'load_civil_comments': load_civil_comments,
     'load_diabetes_readmission': load_diabetes_readmission,
     'load_heritage_health': load_heritage_health,  # Alias for backwards compatibility
-    'load_bias_in_bios': load_bias_in_bios,
-    'load_winogender': load_winogender
+
 }
 
 def load_dataset(dataset_name: str, test_size: float = 0.20, random_state: int = 42):

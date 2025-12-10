@@ -1,6 +1,11 @@
 """
-Main Experiment Runner - Fixed Label Normalization
+Main Experiment Runner - With Checkpoint Support
 fairness_experiments/run_experiment.py
+
+NEW FEATURES:
+- Automatic checkpointing every 10 predictions
+- Resume from checkpoint if experiment interrupted
+- No data loss even if process crashes
 """
 
 import pandas as pd
@@ -17,6 +22,29 @@ from prompts import generate_prompt
 from fairness_analysis import perform_fairness_analysis
 
 load_dotenv()
+
+# ============================================================================
+# CHECKPOINT MANAGEMENT
+# ============================================================================
+
+def load_checkpoint(checkpoint_path: Path) -> pd.DataFrame:
+    """Load existing checkpoint if it exists"""
+    if checkpoint_path.exists():
+        try:
+            df = pd.read_csv(checkpoint_path)
+            print(f" Loaded checkpoint: {len(df)} predictions already completed")
+            return df
+        except Exception as e:
+            print(f"  Could not load checkpoint: {e}")
+            return pd.DataFrame()
+    return pd.DataFrame()
+
+def save_checkpoint(predictions_df: pd.DataFrame, checkpoint_path: Path):
+    """Save checkpoint to disk"""
+    try:
+        predictions_df.to_csv(checkpoint_path, index=False)
+    except Exception as e:
+        print(f"  Could not save checkpoint: {e}")
 
 # ============================================================================
 # LABEL NORMALIZATION
@@ -69,9 +97,13 @@ def normalize_label(label: str, dataset_config) -> str:
 # SINGLE EXPERIMENT EXECUTION
 # ============================================================================
 
-def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
+def run_single_experiment(exp_config: ExperimentConfig, resume: bool = True) -> Dict[str, Any]:
     """
     Run complete experiment: load data, generate predictions, analyze fairness
+    
+    Args:
+        exp_config: Experiment configuration
+        resume: If True, resume from checkpoint if it exists
     
     Returns:
         Dictionary with experiment results and output file paths
@@ -108,7 +140,7 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
         }
         json.dump(config_dict, f, indent=2)
     
-    print(f"✓ Configuration saved: {output_paths['config']}\n")
+    print(f"   Configuration saved: {output_paths['config']}\n")
     
     # Step 1: Load dataset
     print("STEP 1: Loading dataset...")
@@ -126,10 +158,10 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
         feature_columns = data['feature_columns']
         decoder = data['decoder']
         
-        print(f"✓ Loaded {len(X_test)} test samples\n")
+        print(f"   Loaded {len(X_test)} test samples\n")
         
     except Exception as e:
-        print(f"✗ Failed to load dataset: {e}")
+        print(f"    Failed to load dataset: {e}")
         return {
             'experiment_id': exp_config.experiment_id,
             'status': 'failed',
@@ -137,13 +169,23 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
             'output_paths': {k: str(v) for k, v in output_paths.items()}
         }
     
-    # Step 2: Initialize API client
+    # Step 2: Check for existing checkpoint
+    checkpoint_df = pd.DataFrame()
+    completed_ids = set()
+    
+    if resume and output_paths['checkpoint'].exists():
+        checkpoint_df = load_checkpoint(output_paths['checkpoint'])
+        if len(checkpoint_df) > 0:
+            completed_ids = set(checkpoint_df['record_id'].values)
+            print(f" Resuming from checkpoint - skipping {len(completed_ids)} completed predictions\n")
+    
+    # Step 3: Initialize API client
     print("STEP 2: Initializing API client...")
     try:
         client = create_client(exp_config)
-        print(f"✓ Client initialized: {exp_config.api_provider.value}\n")
+        print(f"   Client initialized: {exp_config.api_provider.value}\n")
     except Exception as e:
-        print(f"✗ Failed to initialize client: {e}")
+        print(f"    Failed to initialize client: {e}")
         return {
             'experiment_id': exp_config.experiment_id,
             'status': 'failed',
@@ -154,16 +196,22 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
     # Get dataset config for label normalization
     dataset_cfg = DATASET_REGISTRY[exp_config.dataset_name]
     
-    # Step 3: Generate predictions
+    # Step 4: Generate predictions
     print("STEP 3: Generating predictions...")
-    print(f"Processing {len(X_test)} samples...\n")
+    remaining_samples = [
+        (idx, row, record_id, ground_truth, sensitive_feature)
+        for (idx, row), record_id, ground_truth, sensitive_feature 
+        in zip(X_test.iterrows(), ids_test, y_test, sf_test)
+        if record_id not in completed_ids
+    ]
     
-    prediction_records = []
+    print(f"Processing {len(remaining_samples)} remaining samples (skipped {len(completed_ids)})...\n")
     
-    for (idx, row), record_id, ground_truth, sensitive_feature in tqdm(
-        zip(X_test.iterrows(), ids_test, y_test, sf_test),
-        total=len(X_test),
-        desc="Classifying"
+    prediction_records = checkpoint_df.to_dict('records') if len(checkpoint_df) > 0 else []
+    checkpoint_interval = 10  # Save every 10 predictions
+    
+    for i, (idx, row, record_id, ground_truth, sensitive_feature) in enumerate(
+        tqdm(remaining_samples, desc="Classifying"), 1
     ):
         # Decode features to human-readable format
         data_description = decoder(row, feature_columns)
@@ -200,6 +248,12 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
             pred_record['correct'] = False
         
         prediction_records.append(pred_record)
+        
+        # Save checkpoint periodically
+        if i % checkpoint_interval == 0:
+            checkpoint_temp_df = pd.DataFrame(prediction_records)
+            checkpoint_temp_df = checkpoint_temp_df.rename(columns={'prediction_label': 'prediction'})
+            save_checkpoint(checkpoint_temp_df, output_paths['checkpoint'])
     
     # Convert to DataFrame
     predictions_df = pd.DataFrame(prediction_records)
@@ -228,8 +282,11 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
     
     predictions_df = predictions_df[column_order]
     
-    # Save predictions
+    # Save final predictions
     predictions_df.to_csv(output_paths['predictions'], index=False)
+    
+    # Save final checkpoint
+    save_checkpoint(predictions_df, output_paths['checkpoint'])
     
     # Print summary
     successful_count = predictions_df['api_success'].sum()
@@ -251,10 +308,11 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
         print(predictions_df['ground_truth'].value_counts())
         print(f"\nAverage attempts: {predictions_df['attempts_made'].mean():.2f}")
     
-    print(f"\n✓ Predictions saved: {output_paths['predictions']}")
+    print(f"\n   Predictions saved: {output_paths['predictions']}")
+    print(f"   Checkpoint saved: {output_paths['checkpoint']}")
     print(f"{'='*70}\n")
     
-    # Step 4: Fairness Analysis
+    # Step 5: Fairness Analysis
     if successful_count > 0:
         print("STEP 4: Performing fairness analysis...")
         try:
@@ -263,13 +321,13 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
                 exp_config=exp_config,
                 output_paths=output_paths
             )
-            print(f"✓ Analysis saved: {output_paths['analysis']}")
-            print(f"✓ Fairness summary saved: {output_paths['fairness_summary']}\n")
+            print(f"   Analysis saved: {output_paths['analysis']}")
+            print(f"   Fairness summary saved: {output_paths['fairness_summary']}\n")
         except Exception as e:
-            print(f"⚠  Fairness analysis failed: {e}\n")
+            print(f"  Fairness analysis failed: {e}\n")
             analysis_results = {'error': str(e)}
     else:
-        print("⚠  Skipping fairness analysis (no successful predictions)\n")
+        print("  Skipping fairness analysis (no successful predictions)\n")
         analysis_results = {'error': 'No successful predictions'}
     
     print(f"{'='*70}")
@@ -280,6 +338,7 @@ def run_single_experiment(exp_config: ExperimentConfig) -> Dict[str, Any]:
     print(f"  2. Predictions: {output_paths['predictions']}")
     print(f"  3. Analysis: {output_paths['analysis']}")
     print(f"  4. Fairness Summary: {output_paths['fairness_summary']}")
+    print(f"  5. Checkpoint: {output_paths['checkpoint']}")
     print(f"{'='*70}\n")
     
     return {
@@ -314,7 +373,7 @@ def run_experiments_sequential(experiments: list) -> list:
             result = run_single_experiment(exp_config)
             results.append(result)
         except Exception as e:
-            print(f"✗ Experiment failed: {e}")
+            print(f"    Experiment failed: {e}")
             results.append({
                 'experiment_id': exp_config.experiment_id,
                 'status': 'failed',
@@ -358,9 +417,9 @@ def run_experiments_parallel(experiments: list, max_workers: int = 3) -> list:
             try:
                 result = future.result()
                 results.append(result)
-                print(f"✓ Completed: {exp.experiment_id}")
+                print(f"   Completed: {exp.experiment_id}")
             except Exception as e:
-                print(f"✗ Failed: {exp.experiment_id} - {str(e)}")
+                print(f"    Failed: {exp.experiment_id} - {str(e)}")
                 results.append({
                     'experiment_id': exp.experiment_id,
                     'status': 'failed',
@@ -381,11 +440,10 @@ def main():
     """Example usage"""
     from config import create_experiment_config, ModelSize, APIProvider
     
-    # Example: Run German Credit on all 3 models
+    # Example: Run German Credit on Mistral models
     experiments = [
-        create_experiment_config("german_credit", ModelSize.LLAMA_8B, APIProvider.TOGETHER),
-        create_experiment_config("german_credit", ModelSize.LLAMA_70B, APIProvider.TOGETHER),
-        create_experiment_config("german_credit", ModelSize.LLAMA_405B, APIProvider.TOGETHER),
+        create_experiment_config("german_credit", ModelSize.MISTRAL_7B, APIProvider.TOGETHER),
+        create_experiment_config("german_credit", ModelSize.MISTRAL_SMALL_24B, APIProvider.TOGETHER),
     ]
     
     # Run sequentially (recommended for API rate limits)
@@ -396,7 +454,7 @@ def main():
     with open(summary_path, 'w') as f:
         json.dump(results, f, indent=2, default=str)
     
-    print(f"\n✓ Batch summary saved: {summary_path}")
+    print(f"\n   Batch summary saved: {summary_path}")
 
 if __name__ == "__main__":
     main()

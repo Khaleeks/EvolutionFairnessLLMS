@@ -202,9 +202,6 @@ def example_4_full_matrix():
     print("\n" + "="*70)
     print("EXAMPLE 4: Full Matrix (9 Datasets × 3 Models = 27 Experiments)")
     print("="*70)
-    print("\n⚠️  WARNING: This will take a long time!")
-    print("Estimated time: ~2-3 hours (sequential)")
-    print("Consider running overnight or using parallel execution\n")
     
     # Uncomment to run
     # results = run_all_datasets_all_models(parallel=False)

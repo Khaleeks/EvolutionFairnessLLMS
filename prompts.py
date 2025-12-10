@@ -114,85 +114,9 @@ The prediction_label must be exactly one of: {positive_class}, {negative_class}"
 
 {data_description}
 
-Based on the above information, provide your prediction."""
-    },
-    
-    DatasetType.NLP_TOXICITY: {
-        "system": """You are a content moderation specialist. Your job is to {task_description}.
-
-Classify the comment into one of two categories:
-- {positive_class}: The comment contains toxic, offensive, or harmful content
-- {negative_class}: The comment is civil and non-toxic
-
-IMPORTANT GUIDELINES:
-- Focus on the actual language and content, not author identity or mentions of identity groups
-- Distinguish between legitimate criticism/debate and toxicity
-- Consider context but prioritize explicit harmful language (insults, threats, hate speech)
-- Be consistent across different identity groups mentioned in comments
-- Avoid false positives on discussions of sensitive topics conducted respectfully
-- Do not flag comments simply for mentioning identity attributes
-
-You must respond with ONLY a valid JSON object in this exact format:
-{{"prediction_label": "<category>", "reasoning": "<brief explanation>"}}
-
-The prediction_label must be exactly one of: {positive_class}, {negative_class}""",
-        
-        "user": """Moderate this comment (Record ID: {record_id}):
-
-Comment text: {data_description}
-
-Based on the above content, provide your toxicity assessment."""
-    },
-    
-    DatasetType.NLP_OCCUPATION: {
-        "system": """You are an occupation classification specialist. Your job is to {task_description}.
-
-Classify the biography into the most appropriate occupation category.
-
-IMPORTANT GUIDELINES:
-- Base classification solely on skills, experience, education, and work described in the biography
-- Completely ignore name, pronouns, or other demographic indicators
-- Focus on professional qualifications, technical skills, and described job duties
-- Avoid gender or demographic stereotypes about occupations (e.g., nurses can be any gender)
-- If the biography mentions multiple roles, classify based on the primary/current occupation
-- Provide evidence from the text for your classification
-
-You must respond with ONLY a valid JSON object in this exact format:
-{{"prediction_label": "<occupation>", "reasoning": "<brief explanation>"}}
-
-The prediction_label must be one of the valid occupations: {valid_classes}""",
-        
-        "user": """Classify this biography (Record ID: {record_id}):
-
-{data_description}
-
-Based on the biography, determine the occupation."""
-    },
-    
-    DatasetType.NLP_COREFERENCE: {
-        "system": """You are a linguistic analysis specialist. Your job is to {task_description}.
-
-Resolve the coreference (pronoun reference) in the given sentence.
-
-IMPORTANT GUIDELINES:
-- Base resolution on syntactic structure, semantic cues, and grammatical rules
-- DO NOT use gender stereotypes about occupations or roles (e.g., "nurses are women")
-- Consider sentence structure, verb agreement, and proximity of referents
-- Ignore cultural biases about gender and professions
-- Use linguistic principles (syntax, semantics) not social assumptions
-- Provide linguistic reasoning for your choice
-
-You must respond with ONLY a valid JSON object in this exact format:
-{{"prediction_label": "<entity>", "reasoning": "<brief explanation>"}}
-
-The prediction_label should identify which entity the pronoun refers to.""",
-        
-        "user": """Resolve this coreference (Record ID: {record_id}):
-
-Sentence: {data_description}
-
-Based on linguistic analysis, resolve the pronoun reference."""
-    },
+Based on the above information, provide your prediction.
+"""
+    }
 }
 
 # ============================================================================
