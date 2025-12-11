@@ -1,4 +1,4 @@
-#### Evolution of Fairness in Large Langauge Models
+# Evolution of Fairness in Large Langauge Models
 
 ## Overview
 
