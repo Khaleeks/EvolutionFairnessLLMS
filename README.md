@@ -538,7 +538,5 @@ If you use this framework in academic work:
 }
 ```
 
-**For detailed methodological background and results, see the accompanying capstone report.**
+**For detailed methodological background and results, see the accompanying capstone report[Capstone_kag9691_Report copy.pdf].**
 
-```
-```
