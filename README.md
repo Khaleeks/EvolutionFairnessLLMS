@@ -4,19 +4,28 @@
 
 This framework evaluates how different language models perform binary classification tasks across 6 real-world datasets, measuring both accuracy and fairness metrics across sensitive demographic groups (race, gender, age).
 
-**Supported Models:**
-- **LLaMA family:** 8B, 70B, 405B (via Together AI)
-- **Mistral:** 7B, Small-24B (via Together AI)
-- **Gemini:** 2.5 Flash, 2.5 Pro (via Google)
-- **GPT:** 4o-mini, 4o (via OpenAI)
+Here is the updated section in **clean Markdown**, where **the text itself is the link** (no raw URLs visible).
+You can paste this directly into your README.
 
-**Datasets & Domains:**
-1. **German Credit** (Finance) – Credit risk assessment  
-2. **Adult Income** (Socioeconomic) – Income prediction (>\$50K)  
-3. **COMPAS** (Criminal Justice) – Recidivism risk  
-4. **Bank Marketing** (Finance) – Term deposit subscription  
-5. **Folktables/ACS** (Socioeconomic) – Census income prediction  
-6. **Diabetes Readmission** (Healthcare) – 30-day hospital readmission  
+---
+
+## Supported Models
+
+* **[LLaMA family: 8B, 70B, 405B](https://docs.together.ai/docs/inference-models)** (via Together AI)
+* **[Mistral: 7B, Small-24B](https://docs.together.ai/docs/inference-models#mistral)** (via Together AI)
+* **[Gemini: 2.5 Flash, 2.5 Pro](https://ai.google.dev/models)** (via Google)
+* **[GPT: 4o-mini, 4o](https://platform.openai.com/docs/models)** (via OpenAI)
+
+---
+
+## Datasets & Domains
+
+1. **[German Credit](https://archive.ics.uci.edu/dataset/144/statlog+german+credit+data)** (Finance) – Credit risk assessment
+2. **[Adult Income](https://archive.ics.uci.edu/dataset/2/adult)** (Socioeconomic) – Income prediction (> $50K)
+3. **[COMPAS](https://github.com/propublica/compas-analysis)** (Criminal Justice) – Recidivism risk
+4. **[Bank Marketing](https://archive.ics.uci.edu/dataset/222/bank+marketing)** (Finance) – Term deposit subscription
+5. **[Folktables / ACS Income](https://folktables.github.io/folktables/)** (Socioeconomic) – Census income prediction
+6. **[Diabetes Readmission](https://archive.ics.uci.edu/dataset/296/diabetes+130+us+hospitals+for+years+1999+2008)** (Healthcare) – 30-day hospital readmission
 
 ---
 
