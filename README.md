@@ -72,8 +72,8 @@ timestamp, correct
 Core metrics computed per experiment:
 
 * **Accuracy:** Overall accuracy and max accuracy gap between demographic groups
-* **Demographic parity:** Differences in positive prediction rates between groups
-* **Equalized odds:** Differences in true positive and false positive rates across groups
+* **Demographic parity:** Percentage of positive prediction rates between groups
+* **Equalized odds:** Percentage of true positive and false positive rates across groups
 * **Per-group performance:** Accuracy, precision, recall, F1 for each protected group
 
 Fairness metrics are reported both as **differences** (max gap between groups) and **ratios** (min/max across groups) to match common fairness guidelines (e.g., 80% rule).
@@ -342,7 +342,7 @@ fairness_experiments/
 
 ## Checkpoint & Resume
 
-The framework **automatically saves progress** every N predictions (typically every 10). Each experiment has a corresponding checkpoint file in:
+The framework automatically saves progress every N predictions (typically every 10). Each experiment has a corresponding checkpoint file in:
 
 ```text
 fairness_experiments/checkpoints/
@@ -385,7 +385,7 @@ Each experiment has a fairness summary file (e.g., `*_fairness.json`):
     "recall": 0.6892,
     "f1_score": 0.6997
   },
-  "fairness_differences": {
+  "fairness": {
     "accuracy": 0.1245
   },
   "group_summary": {
@@ -398,8 +398,8 @@ Each experiment has a fairness summary file (e.g., `*_fairness.json`):
     }
   },
   "binary_metrics": {
-    "demographic_parity_difference": 0.0823,
-    "equalized_odds_difference": 0.1156
+    "demographic_parity": 0.0823,
+    "equalized_odds": 0.1156
   }
 }
 ```
@@ -418,12 +418,12 @@ Key interpretations:
 After a dataset completes, a comparison CSV can be produced, e.g.:
 
 ```csv
-model,               accuracy, accuracy_difference, demographic_parity_diff, equalized_odds_diff
+model,               accuracy, accuracy_difference, demographic_parity, equalized_odds
 Mistral-7B,          0.7234,   0.1245,              0.0823,                 0.1156
 Mistral-Small-24B,   0.7456,   0.0987,              0.0634,                 0.0941
 ```
 
-* Higher accuracy + lower `accuracy_difference` + lower `demographic_parity_diff` and `equalized_odds_diff` indicates a **stronger and fairer** model on that dataset.
+* Higher accuracy + lower `accuracy_difference` + lower `demographic_parity` and `equalized` indicates a stronger and fairer model on that dataset.
 
 ---
 
