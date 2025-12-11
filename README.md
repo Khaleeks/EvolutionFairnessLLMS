@@ -4,11 +4,6 @@
 
 This framework evaluates how different language models perform binary classification tasks across 6 real-world datasets, measuring both accuracy and fairness metrics across sensitive demographic groups (race, gender, age).
 
-Here is the updated section in **clean Markdown**, where **the text itself is the link** (no raw URLs visible).
-You can paste this directly into your README.
-
----
-
 ## Supported Models
 
 * **[LLaMA family: 8B, 70B, 405B](https://docs.together.ai/docs/inference-models)** (via Together AI)
